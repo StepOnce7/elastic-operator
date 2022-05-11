@@ -31,3 +31,11 @@
     --type merge \
     --patch "$(cat config/samples/update_single_pod_qps.yaml)"
 ```
+
+### Change Total Pod QPS
+```shell
+    kubectl patch elasticweb elasticweb-sample \
+    -n dev \
+    --type merge \
+    --patch "$(cat config/samples/update_total_qps.yaml)"
+```
