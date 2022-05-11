@@ -62,3 +62,19 @@
 ```shell
     kubectl logs -f elasticweb-operator-controller-manager-859c755c64-7h5d8 -c manager -n elasticweb-operator-system
 ```
+
+### Add Default Verify
+```shell
+    kubectl apply -f config/samples/origin_srd_without_total.yaml --validate=false
+```
+```shell
+    kubectl describe elasticweb elasticweb-sample -n dev // see describe of CR
+```
+
+### Add Validator
+```shell
+    kubectl patch elasticweb elasticweb-sample -n dev --type merge --patch "$(cat config/samples/update_single_pod_max_verify.yaml)" 
+```
+```shell
+    kubectl describe elasticweb elasticweb-sample -n dev // see describe of CR
+```

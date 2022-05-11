@@ -13,4 +13,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: steponce7/elasticweb
-  newTag: "0.1"
+  newTag: "0.2"
