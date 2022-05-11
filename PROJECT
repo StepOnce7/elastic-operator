@@ -1,0 +1,16 @@
+domain: elasticweb-operator
+layout:
+- go.kubebuilder.io/v3
+projectName: elasticweb-operator
+repo: kubebuilder_test/elasticweb-operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: elasticweb-operator
+  group: webapp
+  kind: ElasticWeb
+  path: kubebuilder_test/elasticweb-operator/api/v1
+  version: v1
+version: "3"

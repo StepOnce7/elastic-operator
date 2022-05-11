@@ -1,0 +1,24 @@
+# permissions for end users to edit elasticwebs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: elasticweb-editor-role
+rules:
+- apiGroups:
+  - webapp.elasticweb-operator
+  resources:
+  - elasticwebs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - webapp.elasticweb-operator
+  resources:
+  - elasticwebs/status
+  verbs:
+  - get
