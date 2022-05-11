@@ -39,3 +39,9 @@
     --type merge \
     --patch "$(cat config/samples/update_total_qps.yaml)"
 ```
+
+### Delete CR
+
+```shell
+    kubectl delete elasticweb elasticweb-sample -n dev
+```
