@@ -45,3 +45,20 @@
 ```shell
     kubectl delete elasticweb elasticweb-sample -n dev
 ```
+
+### Build Docker Image
+```shell
+    make docker-build docker-push IMG=<your.repo>/elasticweb:0.1
+```
+
+### Deploy Image Local Cluster
+```shell
+    make deploy IMG=<your.repo>/elasticweb:0.1  
+```
+```shell
+    kubectl apply -f config/samples/webapp_v1_elasticweb.yaml
+```
+- get controller log
+```shell
+    kubectl logs -f elasticweb-operator-controller-manager-859c755c64-7h5d8 -c manager -n elasticweb-operator-system
+```
