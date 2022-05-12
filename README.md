@@ -78,3 +78,10 @@
 ```shell
     kubectl describe elasticweb elasticweb-sample -n dev // see describe of CR
 ```
+
+## Notes
+- If you don't want to enable the webhook function at startup, you can use the following command to run
+
+```shell
+    make run ENABLE_WEBHOOKS=false
+```
