@@ -1,13 +1,13 @@
 apiVersion: webapp.elasticweb-operator/v1
 kind: NodePool
 metadata:
-  name: nodepool-sample
+  name: master
 spec:
   taints:
-    - key: node-pool.lailin.xyz
+    - key: node-pool.webapp.elasticweb-operator
       value: master
       effect: NoSchedule
   labels:
-    "node-pool.lailin.xyz/master": "8"
-    "node-pool.lailin.xyz/test": "2"
+    "node-pool.webapp.elasticweb-operator/master": "8"
+    "node-pool.webapp.elasticweb-operator/test": "2"
   handler: runc

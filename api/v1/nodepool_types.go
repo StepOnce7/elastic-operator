@@ -130,6 +130,7 @@ func (in *NodePool) RuntimeClass() *beta1.RuntimeClass {
 		}
 	}
 
+	// create a new runtimeClass by nodePool info
 	return &beta1.RuntimeClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "node-pool-" + in.Name,

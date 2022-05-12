@@ -60,7 +60,7 @@ func (r *NodePoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	logg.Info("2. get nodePool instance")
 	if err := r.Get(ctx, req.NamespacedName, pool); err != nil {
 		if errors.IsNotFound(err) {
-			logg.Info("2.1 instance not found, maybe removed")
+			logg.Info("2.1 nodePool instance not found, maybe removed")
 			return reconcile.Result{}, nil
 		}
 
@@ -70,16 +70,19 @@ func (r *NodePoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	logg.Info("3. nodePool instance : " + pool.String())
 
+	labelSelector := pool.NodeLabelSelector()
+	logg.WithValues("4. nodeLabelSelector is : ", labelSelector)
+
 	var nodes corev1.NodeList
-	logg.Info("4. get nodeList info ")
+	logg.Info("5. get nodeList by labelSelector")
 	// 查看是否存在对应的节点，如果存在那么就给这些节点加上数据
-	if err := r.List(ctx, &nodes, &client.ListOptions{LabelSelector: pool.NodeLabelSelector()}); err != nil {
+	if err := r.List(ctx, &nodes, &client.ListOptions{LabelSelector: labelSelector}); err != nil {
 		if errors.IsNotFound(err) {
-			logg.Info("4.1 nodeList info not found, maybe removed")
+			logg.Info("5.1 nodeList info not found, maybe removed")
 			return reconcile.Result{}, nil
 		}
 
-		logg.Error(err, "4.2 get nodeList info error")
+		logg.Error(err, "5.2 get nodeList info error")
 		return ctrl.Result{}, err
 	}
 
@@ -97,32 +100,32 @@ func (r *NodePoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	runtimeClass := &beta1.RuntimeClass{}
 	logg.Info("6. get runtimeClass info")
 	if err := r.Get(ctx, client.ObjectKeyFromObject(pool.RuntimeClass()), runtimeClass); err != nil {
-		if errors.IsNotFound(err) {
-			logg.Info("6.1 runtimeClass not found, maybe removed")
-			return reconcile.Result{}, nil
+		if client.IgnoreNotFound(err) != nil {
+			logg.Error(err, "6.1 get runtimeClass error")
+			return ctrl.Result{}, err
 		}
 
-		logg.Error(err, "6.2 get runtimeClass error")
-		return ctrl.Result{}, err
+		logg.Info("6.2 runtimeClass not found， maybe create new one")
 	}
 
 	// 如果不存在创建一个新的
+	logg.Info("7 runtimeClass is not exists, create new one")
 	if runtimeClass.Name == "" {
-		runtimeClass = pool.RuntimeClass()
-		err := ctrl.SetControllerReference(pool, runtimeClass, r.Scheme)
+		err := r.Create(ctx, pool.RuntimeClass())
 		if err != nil {
-			return ctrl.Result{}, err
+			logg.Error(err, "7.1 create runtimeClass error")
+			return ctrl.Result{}, nil
 		}
-		err = r.Create(ctx, runtimeClass)
-		err = r.Create(ctx, pool.RuntimeClass())
-		return ctrl.Result{}, err
+		logg.Info("7.2 runtimeClass create success")
 	}
 
-	//err := r.Client.Patch(ctx, pool.RuntimeClass(), client.Merge)
-	//if err != nil {
-	//	return ctrl.Result{}, err
-	//}
+	logg.Info("8. update runtimeClass info")
+	if err := r.Client.Patch(ctx, pool.RuntimeClass(), client.Merge); err != nil {
+		logg.Error(err, "8.1 update runtimeClass error")
+		return ctrl.Result{}, nil
+	}
 
+	logg.Info("9. reconcile success")
 	return ctrl.Result{}, nil
 }
 
@@ -131,51 +134,4 @@ func (r *NodePoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&webappv1.NodePool{}).
 		Complete(r)
-}
-
-// 节点预删除逻辑
-func (r *NodePoolReconciler) nodeFinalizer(ctx context.Context, pool *webappv1.NodePool, nodes []corev1.Node) error {
-	// 不为空就说明进入到预删除流程
-	for _, n := range nodes {
-		n := n
-
-		// 更新节点的标签和污点信息
-		err := r.Update(ctx, pool.Spec.CleanNode(n))
-		if err != nil {
-			return err
-		}
-	}
-
-	// 预删除执行完毕，移除 nodeFinalizer
-	pool.Finalizers = removeString(pool.Finalizers, nodeFinalizer)
-	return r.Client.Update(ctx, pool)
-}
-
-func nodeReady(status corev1.NodeStatus) bool {
-	for _, condition := range status.Conditions {
-		if condition.Status == "True" && condition.Type == "Ready" {
-			return true
-		}
-	}
-	return false
-}
-
-// 辅助函数用于检查并从字符串切片中删除字符串。
-func containsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
-
-func removeString(slice []string, s string) (result []string) {
-	for _, item := range slice {
-		if item == s {
-			continue
-		}
-		result = append(result, item)
-	}
-	return
 }
