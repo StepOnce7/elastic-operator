@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	beta1 "k8s.io/api/node/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -71,7 +72,7 @@ func (r *NodePoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	logg.Info("3. nodePool instance : " + pool.String())
 
 	labelSelector := pool.NodeLabelSelector()
-	logg.WithValues("4. nodeLabelSelector is : ", labelSelector)
+	logg.Info(fmt.Sprintf("4. nodeLabelSelector is : [%s] ", labelSelector.String()))
 
 	var nodes corev1.NodeList
 	logg.Info("5. get nodeList by labelSelector")
