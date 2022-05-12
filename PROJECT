@@ -17,4 +17,13 @@ resources:
     defaulting: true
     validation: true
     webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: elasticweb-operator
+  group: webapp
+  kind: NodePool
+  path: kubebuilder_test/elasticweb-operator/api/v1
+  version: v1
 version: "3"

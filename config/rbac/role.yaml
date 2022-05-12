@@ -55,3 +55,29 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - webapp.elasticweb-operator
+  resources:
+  - nodepools
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - webapp.elasticweb-operator
+  resources:
+  - nodepools/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - webapp.elasticweb-operator
+  resources:
+  - nodepools/status
+  verbs:
+  - get
+  - patch
+  - update

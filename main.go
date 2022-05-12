@@ -65,6 +65,7 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	// new manager
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
@@ -78,6 +79,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// register reconcile
 	if err = (&controllers.ElasticWebReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
@@ -92,6 +94,13 @@ func main() {
 			os.Exit(1)
 		}
 	}
+	if err = (&controllers.NodePoolReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "NodePool")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -103,6 +112,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// start manager
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")

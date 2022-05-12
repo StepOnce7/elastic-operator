@@ -70,7 +70,7 @@ func (r *ElasticWebReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	logg := log.FromContext(ctx)
 	logg.WithValues("elasticWeb", req.NamespacedName)
 
-	logg.Info("1. start reconcile logic")
+	logg.Info("1. start elasticWeb reconcile logic")
 
 	instance := &webappv1.ElasticWeb{}
 
@@ -85,7 +85,7 @@ func (r *ElasticWebReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	logg.Info("3. instance : " + instance.String())
+	logg.Info("3. elasticWeb instance : " + instance.String())
 
 	deployment := &appsv1.Deployment{}
 	err = r.Get(ctx, req.NamespacedName, deployment)
