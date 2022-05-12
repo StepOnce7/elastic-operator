@@ -37,7 +37,7 @@ type NodePoolReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-const nodeFinalizer = "node.finalizers.node-pool.lailin.xyz"
+const nodeFinalizer = "node.finalizers.node-pool.webapp.elasticweb-operator"
 
 //+kubebuilder:rbac:groups=webapp.elasticweb-operator,resources=nodepools,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=webapp.elasticweb-operator,resources=nodepools/status,verbs=get;update;patch
@@ -87,46 +87,63 @@ func (r *NodePoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
+	logg.Info(fmt.Sprintf("6 Finalizers info : [%v]", pool.Finalizers))
+	// 进入预删除流程
+	if !pool.DeletionTimestamp.IsZero() {
+		logg.Info("6.1 start delete Finalizer work ")
+		return ctrl.Result{}, r.nodeFinalizer(ctx, pool, nodes.Items)
+	}
+
+	// 如果删除时间戳为空说明现在不需要删除该数据，我们将 nodeFinalizer 加入到资源中
+	if !containsString(pool.Finalizers, nodeFinalizer) {
+		logg.Info("6.2 add  Finalizer")
+		pool.Finalizers = append(pool.Finalizers, nodeFinalizer)
+		if err := r.Client.Update(ctx, pool); err != nil {
+			logg.Info("6.3 add  Finalizer error")
+			return ctrl.Result{}, err
+		}
+	}
+
 	if len(nodes.Items) > 0 {
-		logg.Info("5.1 find nodes, will merge data", "nodes", len(nodes.Items))
+		logg.Info("7.1 find nodes, will merge data", "nodes", len(nodes.Items))
 		for _, node := range nodes.Items {
 			node := node
 			if err := r.Patch(ctx, pool.Spec.ApplyNode(node), client.Merge); err != nil {
-				logg.Error(err, "5.2 patch node error")
+				logg.Error(err, "7.2 patch node error")
 				return ctrl.Result{}, nil
 			}
 		}
 	}
 
 	runtimeClass := &beta1.RuntimeClass{}
-	logg.Info("6. get runtimeClass info")
+	logg.Info("8. get runtimeClass info")
 	if err := r.Get(ctx, client.ObjectKeyFromObject(pool.RuntimeClass()), runtimeClass); err != nil {
 		if client.IgnoreNotFound(err) != nil {
-			logg.Error(err, "6.1 get runtimeClass error")
+			logg.Error(err, "8.1 get runtimeClass error")
 			return ctrl.Result{}, err
 		}
 
-		logg.Info("6.2 runtimeClass not found， maybe create new one")
+		logg.Info("8.2 runtimeClass not found， maybe create new one")
 	}
 
 	// 如果不存在创建一个新的
-	logg.Info("7 runtimeClass is not exists, create new one")
+	logg.Info("9 runtimeClass is not exists, create new one")
 	if runtimeClass.Name == "" {
 		err := r.Create(ctx, pool.RuntimeClass())
 		if err != nil {
-			logg.Error(err, "7.1 create runtimeClass error")
+			logg.Error(err, "9.1 create runtimeClass error")
 			return ctrl.Result{}, nil
 		}
-		logg.Info("7.2 runtimeClass create success")
+		logg.Info("9.2 runtimeClass create success")
 	}
 
-	logg.Info("8. update runtimeClass info")
+	logg.Info("10. update runtimeClass info")
 	if err := r.Client.Patch(ctx, pool.RuntimeClass(), client.Merge); err != nil {
-		logg.Error(err, "8.1 update runtimeClass error")
+		logg.Error(err, "10.1 update runtimeClass error")
 		return ctrl.Result{}, nil
 	}
 
-	logg.Info("9. reconcile success")
+	logg.Info("11. reconcile success")
 	return ctrl.Result{}, nil
 }
 
@@ -135,4 +152,42 @@ func (r *NodePoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&webappv1.NodePool{}).
 		Complete(r)
+}
+
+// 节点预删除逻辑
+func (r *NodePoolReconciler) nodeFinalizer(ctx context.Context, pool *webappv1.NodePool, nodes []corev1.Node) error {
+	// 不为空就说明进入到预删除流程
+	for _, n := range nodes {
+		n := n
+
+		// 更新节点的标签和污点信息
+		err := r.Update(ctx, pool.Spec.CleanNode(n))
+		if err != nil {
+			return err
+		}
+	}
+
+	// 预删除执行完毕，移除 nodeFinalizer
+	pool.Finalizers = removeString(pool.Finalizers, nodeFinalizer)
+	return r.Client.Update(ctx, pool)
+}
+
+// 辅助函数用于检查并从字符串切片中删除字符串。
+func containsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+func removeString(slice []string, s string) (result []string) {
+	for _, item := range slice {
+		if item == s {
+			continue
+		}
+		result = append(result, item)
+	}
+	return
 }
