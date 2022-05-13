@@ -1,0 +1,12 @@
+apiVersion: webapp.elasticweb-operator/v1
+kind: NodePool
+metadata:
+  name: master
+spec:
+  taints:
+    - key: node-pool.webapp.elasticweb-operator
+      value: master
+      effect: NoSchedule
+  labels:
+    "node-pool.webapp.elasticweb-operator/master": "10"
+  handler: runc

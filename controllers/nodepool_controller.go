@@ -104,13 +104,31 @@ func (r *NodePoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 	}
 
+	logg.Info("7. if have nodes, will merge data", "nodes", len(nodes.Items))
 	if len(nodes.Items) > 0 {
-		logg.Info("7.1 find nodes, will merge data", "nodes", len(nodes.Items))
+
+		// update status
+		logg.Info("7.1 update pools status")
+		pool.Status.Allocatable = corev1.ResourceList{}
+		pool.Status.NodeCount = len(nodes.Items)
+
+		logg.Info("7.2 start patch node")
 		for _, node := range nodes.Items {
 			node := node
 			if err := r.Patch(ctx, pool.Spec.ApplyNode(node), client.Merge); err != nil {
-				logg.Error(err, "7.2 patch node error")
+				logg.Error(err, "7.3 patch node error")
 				return ctrl.Result{}, nil
+			}
+			for name, quantity := range node.Status.Allocatable {
+				q, ok := pool.Status.Allocatable[name]
+				if ok {
+					// 存在就更新 value
+					q.Add(quantity)
+					pool.Status.Allocatable[name] = q
+					continue
+				}
+				// 不存在就添加
+				pool.Status.Allocatable[name] = quantity
 			}
 		}
 	}
@@ -142,13 +160,23 @@ func (r *NodePoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		logg.Info("9.3 runtimeClass create success")
 	}
 
-	logg.Info("10. update runtimeClass info")
+	logg.Info("10. patch runtimeClass info")
 	if err := r.Client.Patch(ctx, pool.RuntimeClass(), client.Merge); err != nil {
-		logg.Error(err, "10.1 update runtimeClass error")
+		logg.Error(err, "10.1 patch runtimeClass error")
 		return ctrl.Result{}, nil
 	}
 
-	logg.Info("11. reconcile success")
+	pool.Status.Status = 200
+	logg.Info("11. update nodePool status fields")
+	err := r.Status().Update(ctx, pool)
+	if err != nil {
+		logg.Error(err, "11.1 update nodePool status fields error")
+		return ctrl.Result{}, err
+	} else {
+		logg.Info("11.2 update nodePool status fields success")
+	}
+
+	logg.Info("12. reconcile success")
 	return ctrl.Result{}, nil
 }
 
