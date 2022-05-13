@@ -87,7 +87,7 @@ func (r *NodePoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	logg.Info(fmt.Sprintf("6 Finalizers info : [%v]", pool.Finalizers))
+	logg.Info(fmt.Sprintf("6. Finalizers info : [%v]", pool.Finalizers))
 	// 进入预删除流程
 	if !pool.DeletionTimestamp.IsZero() {
 		logg.Info("6.1 start delete Finalizer work ")
@@ -127,14 +127,19 @@ func (r *NodePoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	// 如果不存在创建一个新的
-	logg.Info("9 runtimeClass is not exists, create new one")
+	logg.Info("9. runtimeClass is not exists, create new one")
 	if runtimeClass.Name == "" {
-		err := r.Create(ctx, pool.RuntimeClass())
+		runtimeClass := pool.RuntimeClass()
+		err := ctrl.SetControllerReference(pool, runtimeClass, r.Scheme)
 		if err != nil {
-			logg.Error(err, "9.1 create runtimeClass error")
+			logg.Error(err, "9.1 set controller reference error")
+		}
+		err = r.Create(ctx, runtimeClass)
+		if err != nil {
+			logg.Error(err, "9.2 create runtimeClass error")
 			return ctrl.Result{}, nil
 		}
-		logg.Info("9.2 runtimeClass create success")
+		logg.Info("9.3 runtimeClass create success")
 	}
 
 	logg.Info("10. update runtimeClass info")
