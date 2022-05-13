@@ -16,6 +16,22 @@
 1. make install
 2. kubectl api-versions|grep elasticweb
 
+## Notes
+- If you don't want to enable the webhook function at startup, you can use the following command to run
+
+```shell
+    make run ENABLE_WEBHOOKS=false
+```
+
+- If you want to enable the webhook function at startup, you can use the following command to run
+```shell
+    // 1. Deploying the cert manager
+    kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.yaml
+    
+    // 2. make run
+    make run
+```
+
 ### Run Controller Local
 1. make run
 2. kubectl apply -f config/samples/webapp_v1_elasticweb.yaml
@@ -77,11 +93,4 @@
 ```
 ```shell
     kubectl describe elasticweb elasticweb-sample -n dev // see describe of CR
-```
-
-## Notes
-- If you don't want to enable the webhook function at startup, you can use the following command to run
-
-```shell
-    make run ENABLE_WEBHOOKS=false
 ```
