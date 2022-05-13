@@ -8,5 +8,5 @@ spec:
       value: master
       effect: NoSchedule
   labels:
-    "node-pool.webapp.elasticweb-operator/master": "10"
+    "node-pool.webapp.elasticweb-operator/master": "8"
   handler: runc

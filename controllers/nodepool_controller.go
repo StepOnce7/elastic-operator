@@ -23,10 +23,18 @@ import (
 	beta1 "k8s.io/api/node/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
+	"strings"
+	"time"
 
 	webappv1 "kubebuilder_test/elasticweb-operator/api/v1"
 )
@@ -34,7 +42,8 @@ import (
 // NodePoolReconciler reconciles a NodePool object
 type NodePoolReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 }
 
 const nodeFinalizer = "node.finalizers.node-pool.webapp.elasticweb-operator"
@@ -166,6 +175,8 @@ func (r *NodePoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, nil
 	}
 
+	r.Recorder.Event(pool, corev1.EventTypeNormal, "test", "test")
+
 	pool.Status.Status = 200
 	logg.Info("11. update nodePool status fields")
 	err := r.Status().Update(ctx, pool)
@@ -182,9 +193,60 @@ func (r *NodePoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *NodePoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// watches 增加监测 Node 更新事件
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&webappv1.NodePool{}).
+		Watches(&source.Kind{Type: &corev1.Node{}}, handler.Funcs{UpdateFunc: r.nodeUpdateHandler}).
 		Complete(r)
+}
+
+func (r *NodePoolReconciler) nodeUpdateHandler(e event.UpdateEvent, q workqueue.RateLimitingInterface) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	logg := log.FromContext(ctx)
+	defer cancel()
+
+	oldPool, err := r.getNodePoolByLabels(ctx, e.ObjectOld.GetLabels())
+	if err != nil {
+		logg.Error(err, "get node pool err")
+	}
+
+	if oldPool != nil {
+		q.Add(reconcile.Request{
+			NamespacedName: types.NamespacedName{Name: oldPool.Name},
+		})
+	}
+
+	newPool, err := r.getNodePoolByLabels(ctx, e.ObjectNew.GetLabels())
+	if err != nil {
+		logg.Error(err, "get node pool err")
+	}
+	if newPool != nil {
+		q.Add(reconcile.Request{
+			NamespacedName: types.NamespacedName{Name: newPool.Name},
+		})
+	}
+
+}
+
+func (r *NodePoolReconciler) getNodePoolByLabels(ctx context.Context, labels map[string]string) (*webappv1.NodePool, error) {
+	pool := &webappv1.NodePool{}
+
+	for k := range labels {
+		ss := strings.Split(k, "node-role.kubernetes.io/")
+		if len(ss) != 2 {
+			continue
+		}
+
+		err := r.Client.Get(ctx, types.NamespacedName{Name: ss[1]}, pool)
+		if err == nil {
+			return pool, nil
+		}
+
+		if client.IgnoreNotFound(err) != nil {
+			return nil, err
+		}
+	}
+	return nil, nil
 }
 
 // 节点预删除逻辑
